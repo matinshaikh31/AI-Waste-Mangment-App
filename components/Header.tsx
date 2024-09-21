@@ -308,7 +308,7 @@ export default function Header({ onMenuCLick, totalEarning }: HeaderProps) {
                   size="icon"
                   className="flex items-center"
                 >
-                  <User className="h-5 w-5 mr-1" />
+                  <User className="h-5 w-5 mr-1 text-gray-800" />
                   <ChevronDown className="h-4 w-4" />
                 </Button>
               </DropdownMenuTrigger>
@@ -320,7 +320,7 @@ export default function Header({ onMenuCLick, totalEarning }: HeaderProps) {
                   <Link href="/settings">Profile</Link>
                 </DropdownMenuItem>
                 <DropdownMenuItem>Settings</DropdownMenuItem>
-                <DropdownMenuItem onClick={logout}>Sign Out</DropdownMenuItem>
+                <DropdownMenuItem onClick={logOut}>Sign Out</DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
           )}
