@@ -79,32 +79,37 @@ export default function Header({ onMenuCLick, totalEarning }: HeaderProps) {
   const isMobiel = useMediaQuery("(max-width:768px)");
 
   //For display Web3 user login info
+  const [web3authInitialized, setWeb3AuthInitialized] = useState(false);
+
+  // Update the useEffect for initialization
   useEffect(() => {
     const init = async () => {
       try {
-        await setProvide(web3auth.provider);
+        await web3auth.initModal();
+        setProvider(web3auth.provider);
+        setWeb3AuthInitialized(true); // Set flag to true after initialization
         if (web3auth.connected) {
           setLoggedIn(true);
           const user = await web3auth.getUserInfo();
           setUserInfo(user);
-
           if (user.email) {
             localStorage.setItem("userEmail", user.email);
             try {
               await createUser(user.email, user.name || "Anonymous user");
             } catch (error) {
-              console.error("Error in Creating a user", error);
+              console.error("Error creating user", error);
             }
           }
         }
       } catch (error) {
-        console.error("Erro inilize auth", error);
+        console.error("Error initializing Web3Auth", error);
       } finally {
         setLoading(false);
       }
     };
     init();
   }, []);
+  
 
   //For Fetch Notification
   useEffect(() => {
@@ -154,27 +159,30 @@ export default function Header({ onMenuCLick, totalEarning }: HeaderProps) {
 
   //For Login User
   const login = async () => {
-    if (!web3auth) {
-      console.log("WEb3 Auth is Not inilized");
+    if (!web3authInitialized) {
+      console.log("Web3Auth is not yet initialized.");
+      return;
     }
+    
     try {
       const web3authProvider = await web3auth.connect();
-      setProvide(web3auth);
+      setProvider(web3authProvider);
       setLoggedIn(true);
       const user = await web3auth.getUserInfo();
       setUserInfo(user);
       if (user.email) {
         localStorage.setItem("userEmail", user.email);
         try {
-          await createUser(user.email, user.name || "Anonymous User");
+          await createUser(user.email, user.name || "Anonymous user");
         } catch (error) {
-          console.error(error);
+          console.error("Error creating user", error);
         }
       }
     } catch (error) {
-      console.error(error);
+      console.error("Error logging in with Web3Auth", error);
     }
   };
+  
 
   // For LogOut User
   const logOut = async () => {
