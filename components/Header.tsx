@@ -109,7 +109,6 @@ export default function Header({ onMenuCLick, totalEarning }: HeaderProps) {
     };
     init();
   }, []);
-  
 
   //For Fetch Notification
   useEffect(() => {
@@ -163,7 +162,7 @@ export default function Header({ onMenuCLick, totalEarning }: HeaderProps) {
       console.log("Web3Auth is not yet initialized.");
       return;
     }
-    
+
     try {
       const web3authProvider = await web3auth.connect();
       setProvider(web3authProvider);
@@ -182,7 +181,6 @@ export default function Header({ onMenuCLick, totalEarning }: HeaderProps) {
       console.error("Error logging in with Web3Auth", error);
     }
   };
-  
 
   // For LogOut User
   const logOut = async () => {
@@ -191,7 +189,7 @@ export default function Header({ onMenuCLick, totalEarning }: HeaderProps) {
     }
     try {
       await web3auth.logout();
-      setProvide(null);
+      setProvider(null);
       setLoggedIn(false);
       setUserInfo(null);
       localStorage.removeItem("userEmail");
