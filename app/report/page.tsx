@@ -1,0 +1,236 @@
+"use client";
+
+import { useState, useCallback, useEffect } from "react";
+import { MapPin, Upload, CheckCircle, Loader } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { GoogleGenerativeAI } from "@google/generative-ai";
+import { StandaloneSearchBox, useJsApiLoader } from "@react-google-maps/api";
+import { Libraries } from "@react-google-maps/api";
+import { useRouter } from "next/navigation";
+import { toast } from "react-hot-toast";
+import { createReport } from "@/utils/db/action";
+
+const geminiApiKey = process.env.GEMINI_API_KEY as any;
+const googleMapsAPiKey = process.env.GOOGLE_MAPS_API_KEY as any;
+
+const libraries: Libraries = ["places"];
+
+export default function ReportPage() {
+  //for current user
+  const [user, serUser] = useState("") as any;
+  const router = useRouter();
+
+  //to display current reports
+  const [reports, setReports] = useState<
+    Array<{
+      id: number;
+      location: string;
+      wasteType: string;
+      amount: string;
+      createdAt: string;
+    }>
+  >([]);
+
+  //to create new reports
+  const [newReports, setNewReports] = useState({
+    location: "",
+    type: "",
+    amount: "",
+  });
+
+  //to handel file upload
+  const [file, setFile] = useState<File | null>(null);
+
+  //to preview the file that uploade
+  const [preview, setPreview] = useState<string | null>(null);
+
+  //to set waste Verfication Status
+  const [verificationStatus, setVerificationStatus] = useState<
+    "idle" | "verifying" | "success" | "failure"
+  >("idle");
+
+  //to get waste verification result its meaning verify the upload file has which type quantity and ai confidence
+  const [verificationResult, setVerificationResult] = useState<{
+    wasteType: string;
+    quantity: string;
+    confidence: number;
+  } | null>(null);
+
+  //to handel submit report
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  //this is for google map search box
+  const [searchBox, setSearchBox] =
+    useState<google.maps.places.SearchBox | null>(null);
+
+  // handel to load google map api
+  const { isLoaded } = useJsApiLoader({
+    id: "google-map-script",
+    googleMapsApiKey: googleMapsAPiKey!,
+    libraries: libraries,
+  });
+
+  //use to set seaarch box refrence means get location from goole map api
+  //Initializes the search box when the map is loaded.
+  const onLoad = useCallback((ref: google.maps.places.SearchBox) => {
+    setSearchBox(ref);
+  }, []);
+
+  //to handel place selection from seacrh box and update the location on report
+  const onPlaceChange = () => {
+    if (searchBox) {
+      // it give all places means if we seach india give all suggestion of places of that country
+      const places = searchBox.getPlaces();
+      if (places && places.length > 0) {
+        const place = places[0];
+        //to set locatin property in new report
+        setNewReports((prev) => ({
+          ...prev,
+          location: place.formatted_address || "",
+        }));
+      }
+    }
+  };
+
+  //to handel input of waste type location and  amount
+  const handleInputChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
+  ) => {
+    const { name, value } = e.target;
+    setNewReports({ ...newReports, [name]: value });
+  };
+
+  //to handel file upload and generate a prieview
+  const handelFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const selectedFile = e.target.files[0];
+      setFile(selectedFile);
+      //to read the uploaded file for preview
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        setPreview(e.target?.result as string);
+      };
+      reader.readAsDataURL(selectedFile);
+    }
+  };
+
+  const readFileAsBase64 = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  };
+
+  //Gemini ai
+  const handleVerify = async () => {
+    // If no file is uploaded, exit the function early
+    if (!file) return;
+
+    // Set the verification status to "verifying" to indicate that the verification process has started
+    setVerificationStatus("verifying");
+
+    try {
+      // Initialize the GoogleGenerativeAI with the Gemini API key
+      const genAI = new GoogleGenerativeAI(geminiApiKey!);
+
+      // Specify the model to be used for generative tasks, in this case, "gemini-1.5-flash"
+      const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+
+      // Convert the uploaded file to a base64 encoded string for processing
+      const base64Data = await readFileAsBase64(file);
+
+      // Create an object representing the image file in a format suitable for the API request
+      const imageParts = [
+        {
+          inlineData: {
+            // Extract the actual base64 data from the file, removing the prefix
+            data: base64Data.split(",")[1],
+            // Include the file's MIME type (e.g., image/png, image/jpeg)
+            mimeType: file.type,
+          },
+        },
+      ];
+
+      // Create the prompt for the Gemini AI model, asking it to analyze the uploaded image.
+      // The AI will return the type of waste, estimated quantity, and its confidence level.
+      const prompt = `You are an expert in waste management and recycling. Analyze this image and provide:
+        1. The type of waste (e.g., plastic, paper, glass, metal, organic)
+        2. An estimate of the quantity or amount (in kg or liters)
+        3. Your confidence level in this assessment (as a percentage)
+        
+        Respond in JSON format like this:
+        {
+          "wasteType": "type of waste",
+          "quantity": "estimated quantity with unit",
+          "confidence": confidence level as a number between 0 and 1
+        }`;
+
+      // Generate the content using the AI model by sending the prompt and the image parts
+      const result = await model.generateContent([prompt, ...imageParts]);
+
+      // Get the response from the model
+      const response = await result.response;
+
+      // Convert the response into text format
+      const text = response.text();
+
+      try {
+        // Parse the response text into JSON format to extract the waste analysis data
+        const parsedResult = JSON.parse(text);
+
+        // Check if the parsed result contains valid data for waste type, quantity, and confidence
+        if (
+          parsedResult.wasteType &&
+          parsedResult.quantity &&
+          parsedResult.confidence
+        ) {
+          // If the data is valid, update the verification result state with the parsed data
+          setVerificationResult(parsedResult);
+
+          // Set the verification status to "success" since the process completed successfully
+          setVerificationStatus("success");
+
+          // Update the newReports state with the verified waste type and quantity
+          setNewReports({
+            ...newReports,
+            type: parsedResult.wasteType,
+            amount: parsedResult.quantity,
+          });
+        } else {
+          // If the result does not contain valid data, log an error and set status to failure
+          console.error("Invalid verification result:", parsedResult);
+          setVerificationStatus("failure");
+        }
+      } catch (error) {
+        // If parsing the response JSON fails, log the error and set the status to failure
+        console.error("Failed to parse JSON response:", text);
+        setVerificationStatus("failure");
+      }
+    } catch (error) {
+      // If there is any error during the AI request or processing, log it and set status to failure
+      console.error("Error verifying waste:", error);
+      setVerificationStatus("failure");
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (verificationStatus !== "success" || !user) {
+      toast.error("Please verify the waste before submitting or log in.");
+      return;
+    }
+    setIsSubmitting(true);
+    try {
+      const report = (await createReport(
+        user.id,
+        newReports.location,
+        newReports.type,
+        newReports.amount,
+        preview || undefined,
+        verificationResult ? JSON.stringify(verificationResult) : undefined
+      )) as any;
+    } catch (e) {}
+  };
+}
