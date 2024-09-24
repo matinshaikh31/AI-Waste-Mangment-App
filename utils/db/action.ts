@@ -172,6 +172,7 @@ export async function updateRewardPoints(userId: number, pointsToAdd: number) {
     return null;
   }
 }
+
 //TO Create Trasnscation after sumbiting report
 export async function createTransaction(
   userId: number,
@@ -191,6 +192,7 @@ export async function createTransaction(
     throw e;
   }
 }
+
 //TO Create Notification after sumbiting report
 export async function createNotification(
   userId: number,

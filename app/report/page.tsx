@@ -231,6 +231,28 @@ export default function ReportPage() {
         preview || undefined,
         verificationResult ? JSON.stringify(verificationResult) : undefined
       )) as any;
-    } catch (e) {}
+      const formatteReport = {
+        id: report.id,
+        location: report.location,
+        wasteType: report.wasteType,
+        amount: report.amount,
+        createdAt: report.createdAt.toISOString().split("T")[0],
+      };
+      setReports([formatteReport, ...report]);
+      setNewReports({ location: "", type: "", amount: "" });
+      setFile(null);
+      setPreview(null);
+      setVerificationStatus("idle");
+      setVerificationResult(null);
+
+      toast.success(
+        `Report Sumbit SuccesFully! You've earned points for reporting waste`
+      );
+    } catch (e) {
+      console.error(`Error submiting report `, e);
+      toast.error("fail to submit please try again");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 }
