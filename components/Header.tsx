@@ -116,8 +116,10 @@ export default function Header({ onMenuCLick, totalEarning }: HeaderProps) {
       if (userInfo && userInfo.email) {
         const user = await getUserByEmail(userInfo.email);
         if (user) {
-          const unreadNotifications = await getUnreadNotifications(userInfo.id);
+          const unreadNotifications = await getUnreadNotifications(user.id);
+          // console.log("unre", unreadNotifications);
           setNotification(unreadNotifications);
+          // console.log("not", notification);
         }
       }
     };
@@ -125,6 +127,10 @@ export default function Header({ onMenuCLick, totalEarning }: HeaderProps) {
     const notificationInterval = setInterval(fetchNotification, 30000);
     return () => clearInterval(notificationInterval);
   }, [userInfo]);
+
+  // useEffect(() => {
+  //   console.log("Updated notifications:", notification); // Logs updated state after re-render
+  // }, [notification]);
 
   //For show Balance of user
   useEffect(() => {
@@ -273,11 +279,11 @@ export default function Header({ onMenuCLick, totalEarning }: HeaderProps) {
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-64">
-              {notification > 0 ? (
-                Notification.map((notification: any) => (
+              {notification.length > 0 ? (
+                notification.map((notification) => (
                   <DropdownMenuItem
                     key={notification.id}
-                    onClick={handelNotificationClick(notification.id)}
+                    onClick={() => handelNotificationClick(notification.id)}
                   >
                     <div className="flex flex-col">
                       <span className="font-medium">{notification.type}</span>
@@ -288,7 +294,7 @@ export default function Header({ onMenuCLick, totalEarning }: HeaderProps) {
                   </DropdownMenuItem>
                 ))
               ) : (
-                <DropdownMenuItem>No New Notification</DropdownMenuItem>
+                <DropdownMenuItem>No new notifications</DropdownMenuItem>
               )}
             </DropdownMenuContent>
           </DropdownMenu>

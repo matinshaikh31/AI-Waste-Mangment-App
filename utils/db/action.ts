@@ -1,3 +1,4 @@
+import { User } from "lucide-react";
 import { db } from "./dbConfig";
 import { Notifications, Users, Transactions, Reports, Rewards } from "./schema";
 import { sql, eq, and, desc } from "drizzle-orm";
@@ -211,3 +212,20 @@ export async function createNotification(
     return null;
   }
 }
+
+//TO Fetch Recent Reports
+export async function getRecentReports(limit: number = 10) {
+  try {
+    const report = await db
+      .select()
+      .from(Reports)
+      .orderBy(desc(Reports.createdAt))
+      .limit(limit)
+      .execute();
+      return report
+  } catch (e) {
+    console.log("Erro fetching recent report", e);
+    return [];
+  }
+}
+

@@ -18,7 +18,6 @@ export default function RootLayout({
   const [sidebarOpen, setSideBarOpen] = useState(false);
   const [totalEarning, setTotalEarning] = useState(0);
 
-
   return (
     <html lang="en">
       <body className={inter.className}>
