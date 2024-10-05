@@ -1,6 +1,13 @@
 import { User } from "lucide-react";
 import { db } from "./dbConfig";
-import { Notifications, Users, Transactions, Reports, Rewards, CollectedWastes } from "./schema";
+import {
+  Notifications,
+  Users,
+  Transactions,
+  Reports,
+  Rewards,
+  CollectedWastes,
+} from "./schema";
 import { sql, eq, and, desc } from "drizzle-orm";
 
 //TO Create A User
@@ -308,7 +315,11 @@ export async function getWasteCollectionTasks(limit: number = 20) {
 }
 
 //To update task status
-export async function updateTaskStatus(reportId: number, newStatus: string, collectorId?: number) {
+export async function updateTaskStatus(
+  reportId: number,
+  newStatus: string,
+  collectorId?: number
+) {
   try {
     const updateData: any = { status: newStatus };
     if (collectorId !== undefined) {
@@ -334,17 +345,22 @@ export async function saveReward(userId: number, amount: number) {
       .insert(Rewards)
       .values({
         userId,
-        name: 'Waste Collection Reward',
-        collectionInfo: 'Points earned from waste collection',
+        name: "Waste Collection Reward",
+        collectionInfo: "Points earned from waste collection",
         points: amount,
         level: 1,
         isAvailable: true,
       })
       .returning()
       .execute();
-    
+
     // Create a transaction for this reward
-    await createTransaction(userId, 'earned_collect', amount, 'Points earned for collecting waste');
+    await createTransaction(
+      userId,
+      "earned_collect",
+      amount,
+      "Points earned for collecting waste"
+    );
 
     return reward;
   } catch (error) {
@@ -354,7 +370,11 @@ export async function saveReward(userId: number, amount: number) {
 }
 
 // to save collected waste to the db after user succesfully collected a waste
-export async function saveCollectedWaste(reportId: number, collectorId: number, verificationResult: any) {
+export async function saveCollectedWaste(
+  reportId: number,
+  collectorId: number,
+  verificationResult: any
+) {
   try {
     const [collectedWaste] = await db
       .insert(CollectedWastes)
@@ -362,7 +382,7 @@ export async function saveCollectedWaste(reportId: number, collectorId: number, 
         reportId,
         collectorId,
         collectionDate: new Date(),
-        status: 'verified',
+        status: "verified",
       })
       .returning()
       .execute();
@@ -371,7 +391,6 @@ export async function saveCollectedWaste(reportId: number, collectorId: number, 
     console.error("Error saving collected waste:", error);
     throw error;
   }
-  
 }
 
 //TO get All rewards
@@ -395,5 +414,24 @@ export async function getAllRewards() {
   } catch (error) {
     console.error("Error fetching all rewards:", error);
     return [];
+  }
+}
+
+export async function redeemedPoints(userId: number, poinntsToSub: any) {
+  console.log("Before", Rewards.points);
+  try {
+    const [updatedReward] = await db
+      .update(Rewards)
+      .set({
+        points: sql`${Rewards.points} - ${poinntsToSub}`,
+      })
+      .where(eq(Rewards.userId, userId))
+      .returning()
+      .execute();
+    console.log("After", Rewards.points);
+    return updatedReward;
+  } catch (e) {
+    console.log("Error updating reward points", e);
+    return null;
   }
 }

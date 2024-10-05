@@ -27,6 +27,7 @@ import {
 } from "@/utils/db/action";
 import { useEffect, useState } from "react";
 import { Input } from "@/components/ui/input";
+import React from "react";
 
 const geminiApiKey = process.env.GEMINI_API_KEY as any;
 

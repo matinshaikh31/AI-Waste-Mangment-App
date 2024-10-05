@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { MapPin, Trash, Coins, Medal, Settings, Home, Car } from "lucide-react";
+import { MapPin, Trash, Coins, Medal, Settings, Home, CircleDollarSignIcon } from "lucide-react";
 
 const sidebarItems = [
   { href: "/", icon: Home, label: "Home" },
@@ -9,6 +9,7 @@ const sidebarItems = [
   { href: "/collect", icon: Trash, label: "Collect Waste" },
   { href: "/rewards", icon: Coins, label: "Rewards" },
   { href: "/leaderboard", icon: Medal, label: "Leaderboard" },
+  { href: "/redeem", icon: CircleDollarSignIcon, label: "Redeem Points" },
 ];
 
 interface SidebarProps {
