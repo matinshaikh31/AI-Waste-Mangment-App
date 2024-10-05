@@ -15,6 +15,7 @@ import {
   getAvailableRewards,
 } from "@/utils/db/action";
 import { toast } from "react-hot-toast";
+import Link from "next/link";
 
 type Transaction = {
   id: number;
@@ -85,8 +86,6 @@ export default function RewardsPage() {
 
     fetchUserDataAndRewards();
   }, []);
-  const handleRedeemReward = () => {};
-  const handleRedeemAllPoints = () => {};
 
   if (loading) {
     return (
@@ -189,24 +188,26 @@ export default function RewardsPage() {
                   </p>
                   {reward.id === 0 ? (
                     <div className="space-y-2">
-                      <Button
-                        onClick={handleRedeemAllPoints}
-                        className="w-full bg-green-500 hover:bg-green-600 text-white"
-                        disabled={balance === 0}
-                      >
-                        <Gift className="w-4 h-4 mr-2" />
-                        Redeem All Points
-                      </Button>
+                      <Link href="/redeem" passHref>
+                        <Button
+                          className="w-full bg-green-500 hover:bg-green-600 text-white"
+                          disabled={balance === 0}
+                        >
+                          <Gift className="w-4 h-4 mr-2" />
+                          Redeem All Points
+                        </Button>
+                      </Link>
                     </div>
                   ) : (
-                    <Button
-                      onClick={() => handleRedeemReward()}
-                      className="w-full bg-green-500 hover:bg-green-600 text-white"
-                      disabled={balance < reward.cost}
-                    >
-                      <Gift className="w-4 h-4 mr-2" />
-                      Redeem Reward
-                    </Button>
+                    <Link href="/redeem" passHref>
+                      <Button
+                        className="w-full bg-green-500 hover:bg-green-600 text-white"
+                        disabled={balance < reward.cost}
+                      >
+                        <Gift className="w-4 h-4 mr-2" />
+                        Redeem Reward
+                      </Button>
+                    </Link>
                   )}
                 </div>
               ))

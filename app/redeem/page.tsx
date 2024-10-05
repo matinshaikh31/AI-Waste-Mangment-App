@@ -2,23 +2,23 @@
 
 import { Button } from "@/components/ui/button";
 import {
-    createTransaction,
+  createTransaction,
   getAvailableRewards,
   getRewardTransactions,
   getUserBalance,
   getUserByEmail,
   redeemedPoints,
 } from "@/utils/db/action";
-import { useEffect, useState } from "react";
+import { use, useEffect, useState } from "react";
 import toast from "react-hot-toast";
 
 type Transaction = {
-    id: number;
-    type: "earned_report" | "earned_collect" | "redeemed";
-    amount: number;
-    description: string;
-    date: string;
-  };
+  id: number;
+  type: "earned_report" | "earned_collect" | "redeemed";
+  amount: number;
+  description: string;
+  date: string;
+};
 export default function RedeemPage() {
   const rewards = [
     { id: 1, rewardName: "10% Amazon Coupon", pointsRequired: 10 },
@@ -32,6 +32,7 @@ export default function RedeemPage() {
     email: string;
     name: string;
   } | null>(null);
+  const [balance, setBalance] = useState(0);
 
   useEffect(() => {
     const fetchUser = async () => {
@@ -41,22 +42,36 @@ export default function RedeemPage() {
           const fetchUser = await getUserByEmail(userEmail);
           if (fetchUser) {
             setUser(fetchUser);
+            const balance = await getUserBalance(fetchUser.id);
+            setBalance(balance);
           }
         }
       } catch (error) {}
     };
     fetchUser();
   }, []);
+
   const handelRedeem = (points: number) => {
-    try {
-      if (user?.id) {
-        createTransaction(user.id,"redeemed",points,"Redeem The Earned Points")
-        getUserBalance(user.id)
-        toast.success("Success Fully Reedemed Reward Send To Your Mail");
-      } else {
-        toast.error("LOGIN FIRST")
+    if (user?.id) {
+      try {
+        if (balance>0) {
+          createTransaction(
+            user.id,
+            "redeemed",
+            points,
+            "Redeem The Earned Points"
+          );
+          getUserBalance(user.id);
+          toast.success("Success Fully Reedemed Reward Send To Your Mail");
+        } else {
+          toast.error("Not Enough Points To Reedem");
+        }
+      } catch (error) {
+        console.error("Unbale To Redeem", error);
       }
-    } catch (error) {}
+    } else {
+      toast.error("Login First");
+    }
   };
 
   return (
