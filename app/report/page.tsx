@@ -1,5 +1,5 @@
 "use client";
-
+import React from 'react'
 import { useState, useCallback, useEffect } from "react";
 import { MapPin, Upload, CheckCircle, Loader } from "lucide-react";
 import { Button } from "@/components/ui/button";
