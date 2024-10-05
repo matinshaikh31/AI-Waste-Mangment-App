@@ -5,8 +5,6 @@ import {
   MapPin,
   CheckCircle,
   Clock,
-  ArrowRight,
-  Camera,
   Upload,
   Loader,
   Calendar,
