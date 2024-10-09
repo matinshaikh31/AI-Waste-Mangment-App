@@ -22,10 +22,9 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
-import { Web3Auth } from "@web3auth/modal";
-import { CHAIN_NAMESPACES, IProvider, WEB3AUTH_NETWORK } from "@web3auth/base";
-import { EthereumPrivateKeyProvider } from "@web3auth/ethereum-provider";
-// import { useMediaQuery } from "@/hooks/useMediaQuery"
+import { initializeApp } from "firebase/app";
+import { getAuth, GoogleAuthProvider, signInWithPopup, signOut } from "firebase/auth";
+import { firebaseConfig } from "@/utils/db/Firebase";
 import {
   createUser,
   getUnreadNotifications,
@@ -33,34 +32,12 @@ import {
   getUserByEmail,
   getUserBalance,
 } from "@/utils/db/action";
-import { setLazyProp } from "next/dist/server/api-utils";
-import { clear } from "console";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
 
-//procees.env
-const clientId = process.env.WEB3_AUTH_CLIENT_ID;
-
-//Config File TO Know Where to Send Data
-const chainConfig = {
-  chainNamespace: CHAIN_NAMESPACES.EIP155,
-  chainId: "0xaa36a7",
-  rpcTarget: "https://rpc.ankr.com/eth_sepolia",
-  displayName: "Ethereum Sepolia Testnet",
-  blockExplorerUrl: "https://sepolia.etherscan.io",
-  ticker: "ETH",
-  tickerName: "Ethereum",
-  logo: "https://cryptologos.cc/logos/ethereum-eth-logo.png",
-};
-
-const privateKeyProvider = new EthereumPrivateKeyProvider({
-  config: { chainConfig },
-});
-
-const web3auth = new Web3Auth({
-  clientId,
-  web3AuthNetwork: WEB3AUTH_NETWORK.TESTNET, // Changed from SAPPHIRE_MAINNET to TESTNET
-  privateKeyProvider,
-});
+// Initialize Firebase app
+const firebaseApp = initializeApp(firebaseConfig);
+const firebaseAuth = getAuth(firebaseApp);
+const googleProvider = new GoogleAuthProvider();
 
 //Types of header component argument
 interface HeaderProps {
@@ -69,7 +46,6 @@ interface HeaderProps {
 }
 
 export default function Header({ onMenuCLick, totalEarning }: HeaderProps) {
-  const [provider, setProvider] = useState<IProvider | null>(null);
   const [loggedIn, setLoggedIn] = useState(false);
   const [loading, setLoading] = useState(true);
   const [userInfo, setUserInfo] = useState<any>(null);
@@ -78,36 +54,23 @@ export default function Header({ onMenuCLick, totalEarning }: HeaderProps) {
   const [balance, setBalance] = useState(0);
   const isMobiel = useMediaQuery("(max-width:768px)");
 
-  //For display Web3 user login info
-  const [web3authInitialized, setWeb3AuthInitialized] = useState(false);
-
-  // Update the useEffect for initialization
   useEffect(() => {
-    const init = async () => {
-      try {
-        await web3auth.initModal();
-        setProvider(web3auth.provider);
-        setWeb3AuthInitialized(true); // Set flag to true after initialization
-        if (web3auth.connected) {
-          setLoggedIn(true);
-          const user = await web3auth.getUserInfo();
-          setUserInfo(user);
-          if (user.email) {
-            localStorage.setItem("userEmail", user.email);
-            try {
-              await createUser(user.email, user.name || "Anonymous user");
-            } catch (error) {
-              console.error("Error creating user", error);
-            }
-          }
+    // Check for existing logged-in user
+    firebaseAuth.onAuthStateChanged((user) => {
+      if (user) {
+        setUserInfo(user);
+        setLoggedIn(true);
+        localStorage.setItem("userEmail", user.email || "");
+        try {
+          createUser(user.email || "", user.displayName || "Anonymous User");
+        } catch (error) {
+          console.error("Error creating user", error);
         }
-      } catch (error) {
-        console.error("Error initializing Web3Auth", error);
-      } finally {
-        setLoading(false);
+      } else {
+        setLoggedIn(false);
       }
-    };
-    init();
+      setLoading(false);
+    });
   }, []);
 
   //For Fetch Notification
@@ -117,9 +80,7 @@ export default function Header({ onMenuCLick, totalEarning }: HeaderProps) {
         const user = await getUserByEmail(userInfo.email);
         if (user) {
           const unreadNotifications = await getUnreadNotifications(user.id);
-          // console.log("unre", unreadNotifications);
           setNotification(unreadNotifications);
-          // console.log("not", notification);
         }
       }
     };
@@ -127,10 +88,6 @@ export default function Header({ onMenuCLick, totalEarning }: HeaderProps) {
     const notificationInterval = setInterval(fetchNotification, 30000);
     return () => clearInterval(notificationInterval);
   }, [userInfo]);
-
-  // useEffect(() => {
-  //   console.log("Updated notifications:", notification); // Logs updated state after re-render
-  // }, [notification]);
 
   //For show Balance of user
   useEffect(() => {
@@ -162,62 +119,29 @@ export default function Header({ onMenuCLick, totalEarning }: HeaderProps) {
     };
   }, [userInfo]);
 
-  //For Login User
+  // For Firebase Google Login
   const login = async () => {
-    if (!web3authInitialized) {
-      console.log("Web3Auth is not yet initialized.");
-      return;
-    }
-
     try {
-      const web3authProvider = await web3auth.connect();
-      setProvider(web3authProvider);
-      setLoggedIn(true);
-      const user = await web3auth.getUserInfo();
+      const result = await signInWithPopup(firebaseAuth, googleProvider);
+      const user = result.user;
       setUserInfo(user);
-      if (user.email) {
-        localStorage.setItem("userEmail", user.email);
-        try {
-          await createUser(user.email, user.name || "Anonymous user");
-        } catch (error) {
-          console.error("Error creating user", error);
-        }
-      }
+      setLoggedIn(true);
+      localStorage.setItem("userEmail", user.email || "");
+      await createUser(user.email || "", user.displayName || "Anonymous User");
     } catch (error) {
-      console.error("Error logging in with Web3Auth", error);
+      console.error("Error logging in with Google:", error);
     }
   };
 
   // For LogOut User
   const logOut = async () => {
-    if (!web3auth) {
-      console.log("WEb3 Auth is Not inilized");
-    }
     try {
-      await web3auth.logout();
-      setProvider(null);
+      await signOut(firebaseAuth);
       setLoggedIn(false);
       setUserInfo(null);
       localStorage.removeItem("userEmail");
     } catch (error) {
-      console.error(error);
-    }
-  };
-
-  // For Get User Info
-  const getUserInfo = async () => {
-    if (web3auth.connected) {
-      const user = await web3auth.getUserInfo();
-      setUserInfo(user);
-      if (user.email) {
-        localStorage.setItem("userEmail", user.email);
-        try {
-          await createUser(user.email, user.name || "Anonymous User");
-        } catch (error) {
-          console.error("Error creating user:", error);
-          // Handle the error appropriately, maybe show a message to the user
-        }
-      }
+      console.error("Error logging out:", error);
     }
   };
 
@@ -228,7 +152,7 @@ export default function Header({ onMenuCLick, totalEarning }: HeaderProps) {
 
   //Loading
   if (loading) {
-    return <div>Loading Web3 auth.........</div>;
+    return <div>Loading...</div>;
   }
 
   return (
@@ -320,19 +244,15 @@ export default function Header({ onMenuCLick, totalEarning }: HeaderProps) {
                   size="icon"
                   className="flex items-center"
                 >
-                  <User className="h-5 w-5 mr-1 text-gray-800" />
-                  <ChevronDown className="h-4 w-4" />
+                  <User className="h-5 w-5 md:h-6 md:w-6" />
+                  <ChevronDown className="h-4 w-4 ml-1" />
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={getUserInfo}>
-                  {userInfo ? userInfo.name : "Fetch User Info"}
+              <DropdownMenuContent align="end" className="w-40">
+                <DropdownMenuItem onClick={logOut}>
+                  Logout
+                  <LogOut className="ml-2 h-4 w-4" />
                 </DropdownMenuItem>
-                <DropdownMenuItem>
-                  <Link href="/settings">Profile</Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem>Settings</DropdownMenuItem>
-                <DropdownMenuItem onClick={logOut}>Sign Out</DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
           )}
